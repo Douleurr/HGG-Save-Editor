@@ -10,12 +10,13 @@ public sealed class PersonalTable4 : IPersonalTable, IPersonalTable<PersonalInfo
 {
     private readonly PersonalInfo4[] Table;
     private const int SIZE = PersonalInfo4.SIZE;
-    private const ushort MaxSpecies = Legal.MaxSpeciesID_4;
+    private readonly ushort MaxSpecies;
     public ushort MaxSpeciesID => MaxSpecies;
     public int Count => Table.Length;
 
-    public PersonalTable4(Memory<byte> data)
+    public PersonalTable4(Memory<byte> data, ushort maxSpecies = Legal.MaxSpeciesID_4)
     {
+        MaxSpecies = maxSpecies;
         Table = new PersonalInfo4[data.Length / SIZE];
         var count = data.Length / SIZE;
         for (int i = 0, ofs = 0; i < count; i++, ofs += SIZE)

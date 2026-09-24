@@ -28,9 +28,40 @@ public sealed class SAV4HGSS : SAV4, IBoxDetailName, IBoxDetailWallpaper
     protected override SAV4 CloneInternal4() => State.Exportable ? new SAV4HGSS(Data.ToArray()) : new SAV4HGSS();
 
     public override GameVersion Version { get => (GameVersion)ROMCode; set => ROMCode = (byte)value; }
-    public override PersonalTable4 Personal => PersonalTable.HGSS;
+    public override PersonalTable4 Personal => PersonalTable.HGG;
+    public override ushort MaxSpeciesID => Legal.MaxSpeciesID_9;
     public override ReadOnlySpan<ushort> HeldItems => Legal.HeldItems_HGSS;
     public override int MaxItemID => Legal.MaxItemID_4_HGSS;
+
+    // HGG stores Victini onward at National + 50; PKHeX works in National Dex IDs, so convert at the save boundary.
+    protected override PK4 GetPKM(Memory<byte> data)
+    {
+        var pk = base.GetPKM(data);
+        SetSpecies(pk, SpeciesConverter.GetNationalHGG(pk.Species));
+        return pk;
+    }
+
+    protected override void WriteSlotStored(PKM pk, Span<byte> data) => base.WriteSlotStored(GetSaveForm(pk), data);
+    protected override void WriteSlotParty(PKM pk, Span<byte> data) => base.WriteSlotParty(GetSaveForm(pk), data);
+
+    private static PKM GetSaveForm(PKM pk)
+    {
+        var result = pk.Clone();
+        SetSpecies(result, SpeciesConverter.GetInternalHGG(pk.Species));
+        return result;
+    }
+
+    // Keep the checksum in step with the species rewrite, but don't mask a checksum that was already bad.
+    private static void SetSpecies(PKM pk, ushort species)
+    {
+        bool valid = pk.ChecksumValid;
+        pk.Species = species;
+        if (valid)
+            pk.RefreshChecksum();
+    }
+
+    // HGG's Pokédex sits 0x1F0 bytes later than HeartGold's (general block data before it grew), so writing to the vanilla spot would land on other data.
+    protected override void SetDex(PKM pk) { }
     public const int GeneralSize = 0xFFA0;
     private const int StorageSize = 0x1E4FC; // Start 0x10000, +0 starts box data
     private const int GeneralGap = 0x60;

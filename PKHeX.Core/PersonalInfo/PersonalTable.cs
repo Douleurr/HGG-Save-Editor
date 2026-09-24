@@ -76,6 +76,12 @@ public static class PersonalTable
     public static readonly PersonalTable4 HGSS = new(GetTable("hgss"));
 
     /// <summary>
+    /// Personal Table used in HeartGold Generations (hg-engine), indexed by National Dex ID.
+    /// </summary>
+    /// <remarks>Built from the ROM by HGG/build_personal_hgg.py; HeartGold's alternate-form entries follow the last species.</remarks>
+    public static readonly PersonalTable4 HGG = new(GetTable("hgg"), Legal.MaxSpeciesID_9);
+
+    /// <summary>
     /// Personal Table used in <see cref="GameVersion.Pt"/>.
     /// </summary>
     public static readonly PersonalTable4 Pt = new(GetTable("pt"));
@@ -148,5 +154,23 @@ public static class PersonalTable
     {
         var tutors = BinLinkerAccessor.Get(Util.GetBinaryResource("tutors_g4.pkl"), "g4"u8);
         HGSS.LoadTables(tutors);
+        PopulateHGGTutors();
+    }
+
+    private static void PopulateHGGTutors()
+    {
+        // Reuse HeartGold's tutor flags for the species (and forms) it shares; HGG's own tutors aren't mapped yet.
+        const int formsHGG = Legal.MaxSpeciesID_9 + 1; // HGSS form entries 496-507 follow the last species
+        const int formsHGSS = 496;
+        Span<byte> none = stackalloc byte[8];
+        for (int i = 0; i < HGG.Count; i++)
+        {
+            if (i <= Legal.MaxSpeciesID_4)
+                HGG[i].CopyTypeTutors(HGSS[i]);
+            else if (i >= formsHGG)
+                HGG[i].CopyTypeTutors(HGSS[formsHGSS + (i - formsHGG)]);
+            else
+                HGG[i].AddTypeTutors(none);
+        }
     }
 }

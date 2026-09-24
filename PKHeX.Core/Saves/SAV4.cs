@@ -102,7 +102,7 @@ public abstract class SAV4 : SaveFile, IEventFlag37, IDaycareStorage, IDaycareRa
     public sealed override int MaxCoins => 50_000;
 
     public sealed override ushort MaxMoveID => Legal.MaxMoveID_4;
-    public sealed override ushort MaxSpeciesID => Legal.MaxSpeciesID_4;
+    public override ushort MaxSpeciesID => Legal.MaxSpeciesID_4;
     // MaxItemID
     public sealed override int MaxAbilityID => Legal.MaxAbilityID_4;
     public sealed override int MaxBallID => Legal.MaxBallID_4;
@@ -395,7 +395,7 @@ public abstract class SAV4 : SaveFile, IEventFlag37, IDaycareStorage, IDaycareRa
     }
     #endregion
 
-    protected sealed override PK4 GetPKM(Memory<byte> data) => new(data);
+    protected override PK4 GetPKM(Memory<byte> data) => new(data);
     protected sealed override void DecryptPKM(Span<byte> data) => PokeCrypto.Decrypt45(data);
 
     protected override void SetPKM(PKM pk, bool isParty = false)
@@ -467,7 +467,7 @@ public abstract class SAV4 : SaveFile, IEventFlag37, IDaycareStorage, IDaycareRa
     // Mystery Gift
     public bool IsMysteryGiftUnlocked { get => (General[72] & 1) == 1; set => General[72] = (byte)((General[72] & 0xFE) | (value ? 1 : 0)); }
 
-    protected sealed override void SetDex(PKM pk) => Dex.SetDex(pk);
+    protected override void SetDex(PKM pk) => Dex.SetDex(pk);
     public sealed override bool GetCaught(ushort species) => Dex.GetCaught(species);
     public sealed override bool GetSeen(ushort species) => Dex.GetSeen(species);
 
