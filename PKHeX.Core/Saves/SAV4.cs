@@ -90,7 +90,7 @@ public abstract class SAV4 : SaveFile, IEventFlag37, IDaycareStorage, IDaycareRa
     public sealed override PK4 BlankPKM => new();
     public sealed override Type PKMType => typeof(PK4);
 
-    public sealed override int BoxCount => 18;
+    public override int BoxCount => 18;
     public sealed override int MaxEV => EffortValues.Max255;
     public sealed override byte Generation => 4;
     public sealed override EntityContext Context => EntityContext.Gen4;
