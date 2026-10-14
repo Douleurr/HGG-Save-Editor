@@ -53,6 +53,36 @@ public static class SpeciesConverter
     }
 
     /// <summary>
+    /// Converts a HeartGold Generations (hg-engine) species ID to National Dex ID.
+    /// </summary>
+    /// <remarks>
+    /// hg-engine keeps HeartGold's 0-507 (species, Egg, Bad Egg, alternate forms), pads to 543, then stores Victini onward at National + 50.
+    /// The 494-543 slots are parked just past the National Dex (1026-1075) so every value round-trips through <see cref="GetInternalHGG"/>.
+    /// </remarks>
+    /// <param name="raw">HGG species ID.</param>
+    /// <returns>National Dex ID.</returns>
+    public static ushort GetNationalHGG(ushort raw) => raw switch
+    {
+        <= 493 => raw,
+        <= 543 => (ushort)(raw + 532),
+        <= 1075 => (ushort)(raw - 50),
+        _ => raw,
+    };
+
+    /// <summary>
+    /// Converts a National Dex ID to HeartGold Generations (hg-engine) species ID.
+    /// </summary>
+    /// <param name="species">National Dex ID.</param>
+    /// <returns>HGG species ID.</returns>
+    public static ushort GetInternalHGG(ushort species) => species switch
+    {
+        <= 493 => species,
+        <= 1025 => (ushort)(species + 50),
+        <= 1075 => (ushort)(species - 532),
+        _ => species,
+    };
+
+    /// <summary>
     /// Converts a National Dex ID to Generation 9 internal species ID.
     /// </summary>
     /// <param name="species">National Dex ID</param>

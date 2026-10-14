@@ -16,7 +16,7 @@ public abstract class G4PKM : PKM, IHandlerUpdate,
 
     // Maximums
     public sealed override ushort MaxMoveID => Legal.MaxMoveID_4;
-    public sealed override ushort MaxSpeciesID => Legal.MaxSpeciesID_4;
+    public override ushort MaxSpeciesID => Legal.MaxSpeciesID_4;
     public sealed override int MaxAbilityID => Legal.MaxAbilityID_4;
     public sealed override int MaxItemID => Legal.MaxItemID_4_HGSS;
     public sealed override int MaxBallID => Legal.MaxBallID_4;

@@ -17,7 +17,8 @@ public sealed class PK4 : G4PKM
     public override int SIZE_PARTY => PokeCrypto.SIZE_4PARTY;
     public override int SIZE_STORED => PokeCrypto.SIZE_4STORED;
     public override EntityContext Context => EntityContext.Gen4;
-    public override PersonalInfo4 PersonalInfo => PersonalTable.HGSS.GetFormEntry(Species, Form);
+    public override PersonalInfo4 PersonalInfo => PersonalTable.HGG.GetFormEntry(Species, Form);
+    public override ushort MaxSpeciesID => Legal.MaxSpeciesID_9; // HeartGold Generations has every species
 
     public PK4() : base(PokeCrypto.SIZE_4PARTY) { }
     public PK4(Memory<byte> data) : base(DecryptParty(data)) { }

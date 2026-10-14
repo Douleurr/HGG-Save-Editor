@@ -12,6 +12,7 @@ public sealed class SAV4HGSS : SAV4, IBoxDetailName, IBoxDetailWallpaper
     public SAV4HGSS() : base(GeneralSize, StorageSize)
     {
         Initialize();
+        Version = GameVersion.HGSS; // after offsets are set, so ROMCode lands at Trainer1 + 0x1C
         Mystery = new MysteryBlock4HGSS(this, GeneralBuffer.Slice(OffsetMystery, MysteryBlock4HGSS.Size));
         Dex = new Zukan4(this, GeneralBuffer[PokeDex..]);
     }
@@ -27,28 +28,60 @@ public sealed class SAV4HGSS : SAV4, IBoxDetailName, IBoxDetailWallpaper
     protected override SAV4 CloneInternal4() => State.Exportable ? new SAV4HGSS(Data.ToArray()) : new SAV4HGSS();
 
     public override GameVersion Version { get => (GameVersion)ROMCode; set => ROMCode = (byte)value; }
-    public override PersonalTable4 Personal => PersonalTable.HGSS;
+    public override PersonalTable4 Personal => PersonalTable.HGG;
+    public override ushort MaxSpeciesID => Legal.MaxSpeciesID_9;
     public override ReadOnlySpan<ushort> HeldItems => Legal.HeldItems_HGSS;
     public override int MaxItemID => Legal.MaxItemID_4_HGSS;
-    public const int GeneralSize = 0xF628;
-    private const int StorageSize = 0x12310; // Start 0xF700, +0 starts box data
-    private const int GeneralGap = 0xD8;
+
+    // HGG stores Victini onward at National + 50; PKHeX works in National Dex IDs, so convert at the save boundary.
+    protected override PK4 GetPKM(Memory<byte> data)
+    {
+        var pk = base.GetPKM(data);
+        SetSpecies(pk, SpeciesConverter.GetNationalHGG(pk.Species));
+        return pk;
+    }
+
+    protected override void WriteSlotStored(PKM pk, Span<byte> data) => base.WriteSlotStored(GetSaveForm(pk), data);
+    protected override void WriteSlotParty(PKM pk, Span<byte> data) => base.WriteSlotParty(GetSaveForm(pk), data);
+
+    private static PKM GetSaveForm(PKM pk)
+    {
+        var result = pk.Clone();
+        SetSpecies(result, SpeciesConverter.GetInternalHGG(pk.Species));
+        return result;
+    }
+
+    // Keep the checksum in step with the species rewrite, but don't mask a checksum that was already bad.
+    private static void SetSpecies(PKM pk, ushort species)
+    {
+        bool valid = pk.ChecksumValid;
+        pk.Species = species;
+        if (valid)
+            pk.RefreshChecksum();
+    }
+
+    // HGG's Pokédex sits 0x1F0 bytes later than HeartGold's (general block data before it grew), so writing to the vanilla spot would land on other data.
+    protected override void SetDex(PKM pk) { }
+    public const int GeneralSize = 0xFFA0;
+    private const int StorageSize = 0x1E4FC; // Start 0x10000, +0 starts box data
+    private const int GeneralGap = 0x60;
     private const int PokeDex = 0x12B8;
     protected override int FooterSize => 0x10;
 
+    // HGG (hg-engine EXPAND_PC_BOXES) grows the save to 0x2F pages, pushing each extra block 0xC000 later (vanilla: 0x23000, 0x26000, ...).
     protected override BlockInfo4[] ExtraBlocks =>
     [
-        new(0, 0x23000, 0x2AC0), // Hall of Fame
-        new(1, 0x26000, 0x0BB0), // Battle Hall
-        new(2, 0x27000, 0x1D60), // Battle Video (My Video)
-        new(3, 0x29000, 0x1D60), // Battle Video (Other Videos 1)
-        new(4, 0x2B000, 0x1D60), // Battle Video (Other Videos 2)
-        new(5, 0x2D000, 0x1D60), // Battle Video (Other Videos 3)
+        new(0, 0x2F000, 0x2AC0), // Hall of Fame
+        new(1, 0x32000, 0x0BB0), // Battle Hall
+        new(2, 0x33000, 0x1D60), // Battle Video (My Video)
+        new(3, 0x35000, 0x1D60), // Battle Video (Other Videos 1)
+        new(4, 0x37000, 0x1D60), // Battle Video (Other Videos 2)
+        new(5, 0x39000, 0x1D60), // Battle Video (Other Videos 3)
     ];
 
+    // Don't write Version here: Trainer1 is still 0 before GetSAVOffsets, so the ROMCode write would land on General[0x1C] of a loaded save.
     private void Initialize()
     {
-        Version = GameVersion.HGSS;
         GetSAVOffsets();
     }
 
@@ -98,22 +131,23 @@ public sealed class SAV4HGSS : SAV4, IBoxDetailName, IBoxDetailWallpaper
     }
 
     #region Storage
-    // box{pk4[30}[18]
+    // box{pk4[30}[30] (HGG / hg-engine EXPAND_PC_BOXES: 30 boxes instead of 18)
     // u32 currentBox
     // u32 counter
-    // g4str[18] boxNames
-    // byte[18] boxWallpapers
+    // g4str[30] boxNames
+    // byte[30] boxWallpapers
     // -- each box is chunked, padded to nearest 0x100 (resulting in 0x10 trailing zeroes)
-    // -- The final 0x16 bytes in the Storage block are unused (padding to nearest 0x100).
-    private const int BOX_COUNT = 18;
+    private const int BOX_COUNT = 30;
     private const int BOX_SLOTS = 30;
     private const int BOX_NAME_LEN = 40; // 20 characters
 
     private const int BOX_DATA_LEN = (BOX_SLOTS * PokeCrypto.SIZE_4STORED) + 0x10; // 0xFF0, each box chunk is padded to nearest 0x100
-    private const int BOX_END = BOX_COUNT * BOX_DATA_LEN; // 18 * 0x1000
-    private const int BOX_NAME = 0x12008; // after current & counter
-    private const int BOX_WP = BOX_NAME + (BOX_COUNT * BOX_NAME_LEN); // 0x122D8;
-    private const int BOX_FLAGS = 18 + BOX_WP; // 0x122EA;
+    private const int BOX_END = BOX_COUNT * BOX_DATA_LEN; // 30 * 0x1000 = 0x1E000
+    private const int BOX_NAME = BOX_END + 8; // after current & counter, 0x1E008
+    private const int BOX_WP = BOX_NAME + (BOX_COUNT * BOX_NAME_LEN); // 0x1E4B8
+    private const int BOX_FLAGS = BOX_COUNT + BOX_WP; // 0x1E4D6
+
+    public override int BoxCount => BOX_COUNT;
 
     public override int GetBoxOffset(int box) => box * 0x1000;
     private static int GetBoxNameOffset(int box) => BOX_NAME + (box * BOX_NAME_LEN);
@@ -141,7 +175,7 @@ public sealed class SAV4HGSS : SAV4, IBoxDetailName, IBoxDetailWallpaper
         set => WriteInt32LittleEndian(Storage[(BOX_END + 4)..], value);
     }
 
-    private const int FlagsBoxContentChangedAll = 0x3_FFFF; // 18 boxes.
+    private const int FlagsBoxContentChangedAll = 0x3FFF_FFFF; // 30 boxes.
 
     private Span<byte> GetBoxNameSpan(int box) => Storage.Slice(GetBoxNameOffset(box), BOX_NAME_LEN);
     public string GetBoxName(int box) => GetString(GetBoxNameSpan(box));
